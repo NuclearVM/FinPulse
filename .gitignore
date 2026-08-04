@@ -1,0 +1,14 @@
+# C++
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
