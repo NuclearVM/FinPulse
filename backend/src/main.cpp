@@ -1,9 +1,9 @@
-#include <boost/asio.hpp>
+#include <binance_client.hpp>
 #include <iostream>
 
 int main() {
-    boost::asio::io_context io;
-    std::cout<<"hey I run";
+    BinanceClient client;
+    std::cout << "Client created\n";
 
-    io.run();
+    client.connect();
 }
