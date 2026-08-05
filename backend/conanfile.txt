@@ -1,0 +1,9 @@
+[requires]
+boost/1.89.0
+
+[options]
+boost/*:without_cobalt_io_ssl=True
+
+[generators]
+CMakeDeps
+CMakeToolchain

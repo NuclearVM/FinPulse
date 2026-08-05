@@ -5,6 +5,10 @@ build/
 __pycache__/
 *.pyc
 .venv/
+tools/conan-env/
+
+# User-specific CMake presets
+CMakeUserPresets.json
 
 # Environment
 .env
