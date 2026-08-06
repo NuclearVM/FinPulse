@@ -36,6 +36,8 @@ void BinanceClient::disconnect() {
 
     try
     {
+        connected = false;
+        
         websocket.close(boost::beast::websocket::close_code::normal);
 
         std::cout << "Disconnected from Binance" << '\n';
@@ -48,6 +50,27 @@ void BinanceClient::disconnect() {
     
 }
 
+std::string BinanceClient::read_message() {
+
+    websocket.read(buffer);
+
+    std::string message(
+        static_cast<const char*>(buffer.data().data()),
+        buffer.size()
+    );
+
+    buffer.consume(buffer.size());
+
+    return message;
+}
 void BinanceClient::start() {
-    // will become the receive loop later
+
+    connected = true;
+
+    while (connected) {
+        std::string message = read_message();
+
+        std::cout << message << '\n';
+
+    }
 }

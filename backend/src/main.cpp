@@ -14,5 +14,7 @@ int main() {
 
     client.connect();
 
+    client.start();
+
     return 0;
 }
