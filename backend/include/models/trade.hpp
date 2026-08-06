@@ -2,20 +2,21 @@
 
 #include <string>
 #include <chrono>
+#include <cstdint>
 
 struct Trade
 {
-    std::string source;
+    std::string exchange;
     std::string symbol;
 
     double price;
     double quantity;
 
-    std::chrono::system_clock::time_point timestamp;
+    std::uint64_t trade_id;
 
-    // need to make two separate time stamps later
-    // one for when binance made the exchange and
-    // when finpulse receives it
+    std::chrono::system_clock::time_point event_time;
+    std::chrono::system_clock::time_point execution_time;
+    std::chrono::system_clock::time_point received_time;
 
     // who provided liquidity
     bool buyer_is_maker;

@@ -3,9 +3,10 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/websocket.hpp>
+#include <boost/beast/core/buffers_to_string.hpp>
 #include <boost/beast/ssl.hpp>
-#include "market_ingestor.hpp"
-#include "models/trade.hpp"
+#include "ingestion/market_ingestor.hpp"
+#include "ingestion/binance/binance_parser.hpp"
 
 using WebSocket = boost::beast::websocket::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>;
     
@@ -20,11 +21,13 @@ private:
 
     WebSocket websocket;
 
-    void emit(const Trade& trade);
+    // void emit(const Trade& trade);
 
     std::string read_message();
 
-    Trade parse_trade(const std::string& message);
+    // Trade parse_trade(const std::string& message);
+
+    BinanceParser parser;
 
     bool connected = false;
 

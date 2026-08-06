@@ -1,4 +1,4 @@
-#include "ingestion/binance_client.hpp"
+#include "ingestion/binance/binance_client.hpp"
 #include <iostream>
 
 
@@ -9,7 +9,8 @@ BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_clie
 
 void BinanceClient::connect() {
     try
-    {
+    {  
+
         // get host
         auto endpoints = resolver.resolve("stream.binance.com", "9443");
         
@@ -22,11 +23,15 @@ void BinanceClient::connect() {
         // websocket handshake
         websocket.handshake("stream.binance.com", "/ws/btcusdt@trade");
 
+        connected = true;
+
         std::cout << "connected to binance" << '\n';
 
     }
-    catch(const std::exception& e)
-    {
+    catch(const std::exception& e) {
+
+        connected = false;
+
         std::cerr << "Connection failed: " << e.what() << '\n';
     }
     
@@ -34,17 +39,19 @@ void BinanceClient::connect() {
 
 void BinanceClient::disconnect() {
 
-    try
-    {
-        connected = false;
+    try {
         
         websocket.close(boost::beast::websocket::close_code::normal);
+
+         connected = false;
 
         std::cout << "Disconnected from Binance" << '\n';
 
     }
-    catch(const std::exception& e)
-    {
+    catch(const std::exception& e) {
+
+        connected = false;
+
         std::cerr << "Disconnect error: " << e.what() << '\n';
     }
     
@@ -54,23 +61,37 @@ std::string BinanceClient::read_message() {
 
     websocket.read(buffer);
 
-    std::string message(
-        static_cast<const char*>(buffer.data().data()),
-        buffer.size()
-    );
+    // std::string message(
+    //     static_cast<const char*>(buffer.data().data()),
+    //     buffer.size()
+    // );
+
+    auto message = boost::beast::buffers_to_string(buffer.data());
 
     buffer.consume(buffer.size());
 
     return message;
 }
+
 void BinanceClient::start() {
 
-    connected = true;
-
     while (connected) {
-        std::string message = read_message();
 
-        std::cout << message << '\n';
+        try {
+            auto message = read_message();
+
+            Trade trade = parser.parse_trade(message);
+
+            if (trade_callback) {
+                trade_callback(trade);
+            }
+        }
+        catch (const std::exception& e) {
+
+            std::cerr << "Market data error: " << e.what() << '\n';
+        }
+
+        // std::cout << message << '\n';
 
     }
 }

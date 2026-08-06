@@ -16,16 +16,18 @@ add_executable(finpulse_backend)
 target_sources(finpulse_backend
     PRIVATE
         src/main.cpp
-        include/ingestion/binance_client.hpp
+        include/ingestion/binance/binance_client.hpp
         include/models/trade.hpp
         include/ingestion/market_ingestor.hpp
         include/storage/database.hpp
         include/common/config.hpp
         include/common/logger.hpp
         src/storage/database.cpp
-        src/ingestion/binance_client.cpp
         src/common/logger.cpp
         include/models/order_book.hpp
+        src/ingestion/binance/binance_client.cpp
+        include/ingestion/binance/binance_parser.hpp
+        src/ingestion/binance/binance_parser.cpp
 )
 
 target_include_directories(finpulse_backend
