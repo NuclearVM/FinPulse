@@ -39,7 +39,7 @@ Conan was selected as the package manager for FinPulse because it provides repro
 # **Project Structure**
 ### backend
 
-ingestion: Responsible for communicating with external data providers. Contains the MarketIngestor interface and exchange-specific clients.
+ingestion: Responsible for communicating with external data providers and parsing. Contains the MarketIngestor interface and exchange-specific clients.
 
 models: Contains the canonical domain models used throughout FinPulse. Every subsystem communicates using these models rather than exchange-specific payloads.
 
