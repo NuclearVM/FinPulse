@@ -28,6 +28,13 @@ target_sources(finpulse_backend
         src/ingestion/binance/binance_client.cpp
         include/ingestion/binance/binance_parser.hpp
         src/ingestion/binance/binance_parser.cpp
+        include/models/candle_stick.hpp
+        include/models/metrics/candle_stick_metrics.hpp
+        include/analysis/candle_metrics_calculator.hpp
+        src/analysis/candle_metrics_calculator.cpp
+        include/models/metrics/volatility_metrics.hpp
+        include/analysis/volatility/atr.hpp
+        src/analysis/volatility/atr.cpp
 )
 
 target_include_directories(finpulse_backend
