@@ -12,6 +12,7 @@ class ATR {
         std::size_t period;
         std::size_t count = 0;
 
+        // change to more accurate name later
         double current_atr = 0.0;
 
         std::optional<CandleStick> previous_candle;
