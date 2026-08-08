@@ -2,7 +2,7 @@
 #include <iostream>
 
 
-// need to change to asynch later
+// need to change to asynch later DO NOT FORGET
 BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_client), resolver(io_context), websocket(io_context, ssl_context) {
 
 }
@@ -20,8 +20,11 @@ void BinanceClient::connect() {
         // tls handshake
         websocket.next_layer().handshake(boost::asio::ssl::stream_base::client);
 
-        // websocket handshake
-        websocket.handshake("stream.binance.com", "/ws/btcusdt@trade");
+        // websocket handshake, gets trades
+        // websocket.handshake("stream.binance.com", "/ws/btcusdt@trade");
+
+        // get order book
+        websocket.handshake("stream.binance.com", "/ws/btcusdt@depth");
 
         connected = true;
 
@@ -75,23 +78,48 @@ std::string BinanceClient::read_message() {
 
 void BinanceClient::start() {
 
-    while (connected) {
+    // actual start logic
+    // while (connected) {
 
-        try {
-            auto message = read_message();
+    //     try {
+    //         auto message = read_message();
 
-            Trade trade = parser.parse_trade(message);
+    //         Trade trade = parser.parse_trade(message);
 
-            if (trade_callback) {
-                trade_callback(trade);
-            }
-        }
-        catch (const std::exception& e) {
+    //         if (trade_callback) {
+    //             trade_callback(trade);
+    //         }
+    //     }
+    //     catch (const std::exception& e) {
 
-            std::cerr << "Market data error: " << e.what() << '\n';
-        }
+    //         std::cerr << "Market data error: " << e.what() << '\n';
+    //     }
 
-        // std::cout << message << '\n';
+    //     // std::cout << message << '\n';
 
+    // }
+
+    // get incremental order updates
+     while (connected)
+    {
+         auto message = read_message();
+
+        auto update = parser.parse_order_book_updates(message);
+
+        std::cout
+            << update.symbol
+            << " "
+            << update.first_update_id
+            << " -> "
+            << update.final_update_id
+            << '\n';
+
+        std::cout << "Bids: "
+                  << update.bids.size()
+                  << '\n';
+
+        std::cout << "Asks: "
+                  << update.asks.size()
+                  << '\n';
     }
 }

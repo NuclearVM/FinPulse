@@ -38,3 +38,41 @@ std::chrono::system_clock::time_point BinanceParser::convert_timestamp(uint64_t 
 
     return time;
 }
+
+BinanceOrderBookUpdate BinanceParser::parse_order_book_updates(const std::string& message) {
+
+    const auto data = json::parse(message);
+
+    BinanceOrderBookUpdate update;
+
+    update.symbol = data.at("s").get<std::string>();
+
+    update.first_update_id = data.at("U").get<std::uint64_t>();
+
+    update.final_update_id = data.at("u").get<std::uint64_t>();
+
+    update.timestamp = convert_timestamp(data.at("E").get<std::uint64_t>());
+
+    for (const auto& bid : data.at("b"))
+    {
+        update.bids.push_back(
+            OrderBookLevel{
+                std::stod(bid.at(0).get<std::string>()),
+                std::stod(bid.at(1).get<std::string>())
+            }
+        );
+    }
+
+     for (const auto& ask : data.at("a"))
+    {
+        update.asks.push_back(
+            OrderBookLevel{
+                std::stod(ask.at(0).get<std::string>()),
+                std::stod(ask.at(1).get<std::string>())
+            }
+        );
+    }
+
+    return update;  
+
+}

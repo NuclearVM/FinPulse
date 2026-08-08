@@ -1,8 +1,10 @@
 #pragma once
 
-#include "models/trade.hpp"
-
+#include <chrono>
+#include <cstdint>
 #include <string>
+#include "models/trade.hpp"
+#include "ingestion/binance/updates/binance_order_book_updates.hpp"
 
 
 class BinanceParser {
@@ -15,5 +17,7 @@ private:
 public:
 
     Trade parse_trade(const std::string& message);
+
+    BinanceOrderBookUpdate parse_order_book_updates(const std::string& message);
 
 };

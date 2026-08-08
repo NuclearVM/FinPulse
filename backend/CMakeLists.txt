@@ -24,7 +24,6 @@ target_sources(finpulse_backend
         include/common/logger.hpp
         src/storage/database.cpp
         src/common/logger.cpp
-        include/models/order_book.hpp
         src/ingestion/binance/binance_client.cpp
         include/ingestion/binance/binance_parser.hpp
         src/ingestion/binance/binance_parser.cpp
@@ -37,6 +36,12 @@ target_sources(finpulse_backend
         src/analysis/volatility/atr.cpp
         include/analysis/volatility_metrics_calculator.hpp
         src/analysis/volatility_metrics_calculator.cpp
+        include/models/order_book/order_book_level.hpp
+        include/models/order_book/order_book.hpp
+        include/ingestion/binance/order_book_reconstructor.hpp
+        include/ingestion/binance/updates/binance_order_book_updates.hpp
+        src/ingestion/binance/order_book_reconstructor.cpp
+        include/ingestion/binance/updates/binance_order_book_snapshot.hpp
 )
 
 target_include_directories(finpulse_backend
