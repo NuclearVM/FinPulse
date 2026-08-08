@@ -35,6 +35,8 @@ target_sources(finpulse_backend
         include/models/metrics/volatility_metrics.hpp
         include/analysis/volatility/atr.hpp
         src/analysis/volatility/atr.cpp
+        include/analysis/volatility_metrics_calculator.hpp
+        src/analysis/volatility_metrics_calculator.cpp
 )
 
 target_include_directories(finpulse_backend
