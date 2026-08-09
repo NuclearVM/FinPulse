@@ -21,6 +21,6 @@ public:
 
     BinanceOrderBookUpdate parse_order_book_updates(const std::string& message);
 
-    BinanceOrderBookSnapshot parse_order_book_snapshot(const std::string& message);
+    BinanceOrderBookSnapshot parse_order_book_snapshot(const std::string& message, const std::string& symbol);
 
 };

@@ -77,13 +77,13 @@ BinanceOrderBookUpdate BinanceParser::parse_order_book_updates(const std::string
 
 }
 
-BinanceOrderBookSnapshot BinanceParser::parse_order_book_snapshot(const std::string& message)
+BinanceOrderBookSnapshot BinanceParser::parse_order_book_snapshot(const std::string& message, const std::string& symbol)
 {
     const auto data = nlohmann::json::parse(message);
 
     BinanceOrderBookSnapshot snapshot;
 
-    snapshot.symbol = data.at("symbol").get<std::string>();
+    snapshot.symbol = symbol;
 
     snapshot.last_update_id = data.at("lastUpdateId").get<std::uint64_t>();
 

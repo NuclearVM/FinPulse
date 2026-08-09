@@ -26,5 +26,5 @@ BinanceOrderBookSnapshot BinanceOrderBookSnapshotRetriever::get_snapshot(const s
 
     const std::string response = http_client.get("api.binance.com", target);
 
-    return parser.parse_order_book_snapshot(response);
+    return parser.parse_order_book_snapshot(response, symbol);
 }

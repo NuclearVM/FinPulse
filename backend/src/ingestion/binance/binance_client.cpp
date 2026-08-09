@@ -82,8 +82,6 @@ void BinanceClient::initialize_order_book() {
         order_book_reconstructor.initialize(snapshot);
 
         std::cout << "Order book initialized at update ID " << snapshot.last_update_id << '\n';
-
-        
 }
 
 void BinanceClient::recover_order_book() {
@@ -97,7 +95,9 @@ void BinanceClient::recover_order_book() {
 
 void BinanceClient::start() {
 
-     if (!connected)
+    std::size_t applied_updates = 0;
+
+    if (!connected)
     {
         throw std::runtime_error(
             "Cannot start Binance client: not connected"
@@ -116,6 +116,38 @@ void BinanceClient::start() {
             switch (result) {
 
                 case UpdateResult::Applied:
+                    ++applied_updates;
+
+                    if (applied_updates % 100 == 0)
+                    {
+                        const auto book = order_book_reconstructor.get_order_book();
+
+                        std::cout
+                            << "\n=== Order Book Check ===\n"
+                            << "Symbol: " << book.symbol << '\n'
+                            << "Levels: "
+                            << "bids=" << book.bids.size()
+                            << ", asks=" << book.asks.size()
+                            << '\n';
+
+                        if (!book.bids.empty() && !book.asks.empty())
+                        {
+                            std::cout
+                                << "Bid: "
+                                << book.bids.front().price
+                                << " -> "
+                                << book.bids.front().quantity
+                                << '\n';
+
+                            std::cout
+                                << "Ask: "
+                                << book.asks.front().price
+                                << " -> "
+                                << book.asks.front().quantity
+                                << '\n';
+                        }
+                    }
+
                     break;
 
                 case UpdateResult::Ignored:
