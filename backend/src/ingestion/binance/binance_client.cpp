@@ -82,6 +82,8 @@ void BinanceClient::initialize_order_book() {
         order_book_reconstructor.initialize(snapshot);
 
         std::cout << "Order book initialized at update ID " << snapshot.last_update_id << '\n';
+
+        
 }
 
 void BinanceClient::recover_order_book() {
