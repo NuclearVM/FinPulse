@@ -6,6 +6,7 @@ void OrderBookReconstructor::initialize( const BinanceOrderBookSnapshot& snapsho
     asks.clear();
 
     symbol = snapshot.symbol;
+    last_update_id = snapshot.last_update_id;
 
     for (const auto& level : snapshot.bids)
     {
@@ -18,8 +19,16 @@ void OrderBookReconstructor::initialize( const BinanceOrderBookSnapshot& snapsho
     }
 }
 
-void OrderBookReconstructor::apply_update(const BinanceOrderBookUpdate& update)
+UpdateResult OrderBookReconstructor::apply_update(const BinanceOrderBookUpdate& update)
 {
+    // ignore updates that are older than the current state
+
+    if (update.final_update_id <= last_update_id) {return UpdateResult::Ignored; }
+
+    // check if there's any gaps, if gaps are foud than the current book can't be trusted
+
+    if (update.first_update_id > last_update_id + 1) {return UpdateResult::SequenceGap; }
+
     symbol = update.symbol;
     timestamp = update.timestamp;
 
@@ -46,6 +55,10 @@ void OrderBookReconstructor::apply_update(const BinanceOrderBookUpdate& update)
             asks[level.price] = level.quantity;
         }
     }
+
+    last_update_id = update.final_update_id;
+
+    return UpdateResult::Applied;
 }
 
 OrderBook OrderBookReconstructor::get_order_book() const

@@ -76,3 +76,36 @@ BinanceOrderBookUpdate BinanceParser::parse_order_book_updates(const std::string
     return update;  
 
 }
+
+BinanceOrderBookSnapshot BinanceParser::parse_order_book_snapshot(const std::string& message)
+{
+    const auto data = nlohmann::json::parse(message);
+
+    BinanceOrderBookSnapshot snapshot;
+
+    snapshot.symbol = data.at("symbol").get<std::string>();
+
+    snapshot.last_update_id = data.at("lastUpdateId").get<std::uint64_t>();
+
+    for (const auto& level : data.at("bids"))
+    {
+        snapshot.bids.push_back(
+            OrderBookLevel{
+                std::stod(level.at(0).get<std::string>()),
+                std::stod(level.at(1).get<std::string>())
+            }
+        );
+    }
+
+    for (const auto& level : data.at("asks"))
+    {
+        snapshot.asks.push_back(
+            OrderBookLevel{
+                std::stod(level.at(0).get<std::string>()),
+                std::stod(level.at(1).get<std::string>())
+            }
+        );
+    }
+
+    return snapshot;
+}

@@ -42,6 +42,11 @@ target_sources(finpulse_backend
         include/ingestion/binance/updates/binance_order_book_updates.hpp
         src/ingestion/binance/order_book_reconstructor.cpp
         include/ingestion/binance/updates/binance_order_book_snapshot.hpp
+        include/ingestion/binance/updates/update_results.hpp
+        include/ingestion/binance/snapshot_retriever.hpp
+        src/ingestion/binance/snapshot_retriever.cpp
+        include/common/http_client.hpp
+        src/common/http_client.cpp
 )
 
 target_include_directories(finpulse_backend

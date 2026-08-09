@@ -3,9 +3,11 @@
 
 
 // need to change to asynch later DO NOT FORGET
-BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_client), resolver(io_context), websocket(io_context, ssl_context) {
-
-}
+BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_client), 
+                                resolver(io_context), 
+                                websocket(io_context, ssl_context), 
+                                http_client(io_context, ssl_context), 
+                                snapshot_retriever(http_client, parser) {}
 
 void BinanceClient::connect() {
     try
@@ -42,6 +44,8 @@ void BinanceClient::connect() {
 
 void BinanceClient::disconnect() {
 
+    if (!connected) return; 
+
     try {
         
         websocket.close(boost::beast::websocket::close_code::normal);
@@ -64,62 +68,66 @@ std::string BinanceClient::read_message() {
 
     websocket.read(buffer);
 
-    // std::string message(
-    //     static_cast<const char*>(buffer.data().data()),
-    //     buffer.size()
-    // );
-
-    auto message = boost::beast::buffers_to_string(buffer.data());
+    const auto message = boost::beast::buffers_to_string(buffer.data());
 
     buffer.consume(buffer.size());
 
     return message;
 }
 
+void BinanceClient::initialize_order_book() {
+
+        auto snapshot = snapshot_retriever.get_snapshot("BTCUSDT", 100);
+
+        order_book_reconstructor.initialize(snapshot);
+
+        std::cout << "Order book initialized at update ID " << snapshot.last_update_id << '\n';
+}
+
+void BinanceClient::recover_order_book() {
+
+    std::cerr << "Order book sequence gap detected. " << "Recovering...\n";
+
+    initialize_order_book();
+
+    std::cout << "Order book recovered.\n";
+}
+
 void BinanceClient::start() {
 
-    // actual start logic
-    // while (connected) {
-
-    //     try {
-    //         auto message = read_message();
-
-    //         Trade trade = parser.parse_trade(message);
-
-    //         if (trade_callback) {
-    //             trade_callback(trade);
-    //         }
-    //     }
-    //     catch (const std::exception& e) {
-
-    //         std::cerr << "Market data error: " << e.what() << '\n';
-    //     }
-
-    //     // std::cout << message << '\n';
-
-    // }
-
-    // get incremental order updates
-     while (connected)
+     if (!connected)
     {
-         auto message = read_message();
+        throw std::runtime_error(
+            "Cannot start Binance client: not connected"
+        );
+    }
 
-        auto update = parser.parse_order_book_updates(message);
+    while (connected) {
+        try {
+            
+            auto message = read_message();
 
-        std::cout
-            << update.symbol
-            << " "
-            << update.first_update_id
-            << " -> "
-            << update.final_update_id
-            << '\n';
+            auto update = parser.parse_order_book_updates(message);
 
-        std::cout << "Bids: "
-                  << update.bids.size()
-                  << '\n';
+            auto result = order_book_reconstructor.apply_update(update);
 
-        std::cout << "Asks: "
-                  << update.asks.size()
-                  << '\n';
+            switch (result) {
+
+                case UpdateResult::Applied:
+                    break;
+
+                case UpdateResult::Ignored:
+                    break;
+
+                case UpdateResult::SequenceGap:
+                    recover_order_book();
+                    break;
+            }
+        }
+
+        catch (const std::exception& e) {
+
+            std::cerr << "Market data error: " << e.what() << '\n';
+        }
     }
 }
