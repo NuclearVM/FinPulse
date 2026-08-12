@@ -7,6 +7,10 @@ __pycache__/
 .venv/
 tools/conan-env/
 
+
+# Database
+timescaledb/
+
 # User-specific CMake presets
 CMakeUserPresets.json
 
