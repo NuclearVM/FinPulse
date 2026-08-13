@@ -76,6 +76,223 @@ They are consumed by Binance-specific ingestion components and are used to updat
 
 ---
 
+## **Canonical Model Pipelines**
+
+Each canonical model represents a specific type of market data used throughout FinPulse.
+
+Canonical models are not necessarily created or processed in the same way. Some models can be created directly from parsed exchange data, while others require additional components to aggregate, reconstruct, or calculate information before they can be fully utilized.
+
+The following sections describe the components currently associated with each canonical model and how the data flows through FinPulse.
+
+### **Trade**
+
+`Trade` represents an individual executed market trade.
+
+Trade is currently the simplest canonical model in FinPulse. Binance trade messages are parsed directly into the `Trade` model by `BinanceParser`.
+
+**Required components:**
+
+* `BinanceParser`
+
+**Downstream components:**
+
+* `CandleAggregator` will consume trades to construct `CandleStick` models (PLANNED).
+* `Database` will persist trades for historical market-data storage.
+* Future analysis components may consume trades directly.
+
+**Pipeline:**
+
+`Binance JSON → BinanceParser → Trade → CandleAggregator / Database / Analysis`
+
+---
+
+### **CandleStick**
+
+`CandleStick` represents aggregated market activity over a defined time interval.
+
+Unlike `Trade`, candles are not currently parsed directly from Binance. Candles will be constructed by collecting `Trade` models over a defined time interval.
+
+**Required components:**
+
+* `CandleAggregator` *(planned)*
+
+`CandleAggregator` will collect incoming `Trade` models and use their price and quantity information to construct the candle's:
+
+* Open price.
+* Close price.
+* High price.
+* Low price.
+* Volume.
+* Timestamp.
+
+Once a candle has been completed, it can be passed to the analysis and storage components.
+
+**Candle Analysis**
+
+`CandleStick` is also used by several analysis components.
+
+`CandleMetricsCalculator` receives a completed `CandleStick` and calculates its structural properties, represented by `CandleMetrics`.
+
+`CandleMetrics` describes the geometry of the candle:
+
+* Range.
+* Body.
+* Upper wick.
+* Lower wick.
+
+The resulting `CandleMetrics` can then be passed to `VolatilityMetricsCalculator` alongside the current ATR value to produce `VolatilityMetrics`.
+
+**Volatility**
+
+`ATR` is a stateful streaming calculation that consumes completed `CandleStick` models.
+
+ATR maintains its own state and calculates True Range using the current and previous candle. Once enough candles have been processed for the configured period, ATR produces the current Average True Range.
+
+`VolatilityMetricsCalculator` combines the current ATR with `CandleMetrics` to produce:
+
+* ATR.
+* Range relative to ATR.
+* Body relative to ATR.
+
+**Required components:**
+
+* `CandleAggregator` *(planned)*
+* `CandleMetricsCalculator`
+* `ATR`
+* `VolatilityMetricsCalculator`
+
+**Storage:**
+
+* `Database` will persist completed candles for historical analysis.
+
+**Pipeline:**
+
+`Trade → CandleAggregator → CandleStick → CandleMetricsCalculator → CandleMetrics`
+
+`CandleStick → ATR`
+
+`CandleMetrics + ATR → VolatilityMetricsCalculator → VolatilityMetrics`
+
+---
+
+### **OrderBook**
+
+`OrderBook` represents the current reconstructed state of an order book.
+
+Unlike `Trade`, the canonical `OrderBook` is not produced directly by `BinanceParser`.
+
+Binance provides order-book data through an initial REST snapshot and incremental WebSocket updates. These are represented by exchange-specific models and passed to `OrderBookReconstructor`.
+
+`OrderBookReconstructor` maintains the current order-book state and constructs the canonical `OrderBook` when requested.
+
+**Canonical Components:**
+
+* `OrderBook`
+* `OrderBookLevel`
+* `OrderBookReconstructor`
+
+`OrderBook` contains:
+
+* Symbol.
+* Bid levels.
+* Ask levels.
+* Timestamp.
+
+Each bid and ask is represented by an `OrderBookLevel`, which contains:
+
+* Price.
+* Quantity.
+
+---
+
+### **Binance Order Book Models**
+
+The order-book reconstruction process requires several Binance-specific models.
+
+#### **BinanceOrderBookSnapshot**
+
+`BinanceOrderBookSnapshot` represents the initial order-book state retrieved from Binance's REST API.
+
+It contains:
+
+* Symbol.
+* Last update ID.
+* Bid levels.
+* Ask levels.
+
+`BinanceOrderBookSnapshotRetriever` retrieves the snapshot using `HttpClient` and passes the response to `BinanceParser` for parsing.
+
+---
+
+#### **BinanceOrderBookUpdate**
+
+`BinanceOrderBookUpdate` represents an incremental change to the existing Binance order book.
+
+Instead of repeatedly retrieving complete order books, Binance provides updates containing only the price levels that have changed.
+
+The update contains:
+
+* Symbol.
+* First update ID.
+* Final update ID.
+* Timestamp.
+* Bid changes.
+* Ask changes.
+
+`BinanceParser` converts incoming WebSocket messages into `BinanceOrderBookUpdate` models.
+
+---
+
+### **OrderBook Reconstruction**
+
+`OrderBookReconstructor` is responsible for combining the snapshot and incremental updates into the canonical `OrderBook`.
+
+Its responsibilities include:
+
+* Initializing the order book from a snapshot.
+* Applying incremental updates.
+* Tracking the latest update ID.
+* Ignoring updates that have already been processed.
+* Detecting sequence gaps.
+* Removing price levels whose quantity becomes zero.
+* Updating existing price levels.
+* Adding new price levels.
+* Producing the current canonical `OrderBook`.
+
+`UpdateResult` provides the result of applying an update:
+
+* `Applied`
+* `Ignored`
+* `SequenceGap`
+
+A `SequenceGap` indicates that the current reconstructed state can no longer be trusted and requires snapshot recovery.
+
+---
+
+### **Order Book Snapshot Retrieval**
+
+`BinanceOrderBookSnapshotRetriever` is responsible for retrieving the initial or recovery snapshot required by `OrderBookReconstructor`.
+
+It uses:
+
+* `HttpClient` for generic HTTPS communication.
+* `BinanceParser` for parsing the Binance response.
+* `BinanceOrderBookSnapshot` for representing the exchange-specific snapshot.
+
+The snapshot retriever therefore connects the generic transport layer to the Binance-specific order-book reconstruction process without placing HTTP logic inside `OrderBookReconstructor`.
+
+**Order Book Pipeline:**
+
+`BinanceClient → BinanceOrderBookSnapshotRetriever → BinanceParser → BinanceOrderBookSnapshot → OrderBookReconstructor`
+
+After initialization:
+
+`Binance WebSocket → BinanceParser → BinanceOrderBookUpdate → OrderBookReconstructor → OrderBook`
+
+The resulting `OrderBook` represents the current reconstructed market state and is intended to be used by live-state components such as Redis.
+
+---
+
 # **Transport Layer**
 
 The transport layer provides reusable networking infrastructure without containing exchange-specific API logic.
