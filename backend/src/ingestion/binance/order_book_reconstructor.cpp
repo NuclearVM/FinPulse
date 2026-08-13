@@ -71,6 +71,7 @@ OrderBook OrderBookReconstructor::get_order_book() const
     book.bids.reserve(bids.size());
     book.asks.reserve(asks.size());
 
+    // maybe change these later instead of calling order book on every frame
     for (const auto& [price, quantity] : bids)
     {
         book.bids.push_back(OrderBookLevel{price, quantity});
