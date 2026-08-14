@@ -47,6 +47,9 @@ target_sources(finpulse_backend
         src/ingestion/binance/snapshot_retriever.cpp
         include/common/http_client.hpp
         src/common/http_client.cpp
+        include/aggregation/candle_aggregator.hpp
+        src/aggregation/candle_aggregator.cpp
+        include/ingestion/binance/binance_message_type.hpp
 )
 
 target_include_directories(finpulse_backend

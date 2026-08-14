@@ -7,7 +7,8 @@ BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_clie
                                 resolver(io_context), 
                                 websocket(io_context, ssl_context), 
                                 http_client(io_context, ssl_context), 
-                                snapshot_retriever(http_client, parser) {}
+                                snapshot_retriever(http_client, parser),
+                                candle_aggregator(std::chrono::seconds(60)) {}
 
 void BinanceClient::connect() {
     try
@@ -26,8 +27,10 @@ void BinanceClient::connect() {
         // websocket.handshake("stream.binance.com", "/ws/btcusdt@trade");
 
         // get order book
-        websocket.handshake("stream.binance.com", "/ws/btcusdt@depth");
-
+        // websocket.handshake("stream.binance.com", "/ws/btcusdt@depth");
+        
+        // get both trades and order book
+        websocket.handshake("stream.binance.com", "/stream?streams=btcusdt@trade/btcusdt@depth");
         connected = true;
 
         std::cout << "connected to binance" << '\n';
@@ -104,63 +107,72 @@ void BinanceClient::start() {
         );
     }
 
-    while (connected) {
-        try {
-            
+    while (connected)
+    {
+        try
+        {
             auto message = read_message();
 
-            auto update = parser.parse_order_book_updates(message);
+            switch (parser.identify_message(message))
+            {
+                case BinanceMessageType::Trade:
+                {
+                    auto trade = parser.parse_trade(message);
 
-            auto result = order_book_reconstructor.apply_update(update);
+                    // TESTING
+                    // std::cout
+                    //     << "TRADE: "
+                    //     << trade.symbol
+                    //     << " price=" << trade.price
+                    //     << " quantity=" << trade.quantity
+                    //     << '\n';
 
-            switch (result) {
+                    auto completed_candle = candle_aggregator.process_trade(trade);
 
-                case UpdateResult::Applied:
-                    ++applied_updates;
-
-                    if (applied_updates % 100 == 0)
+                    if (completed_candle)
                     {
-                        const auto book = order_book_reconstructor.get_order_book();
-
+                        // TESTING
                         std::cout
-                            << "\n=== Order Book Check ===\n"
-                            << "Symbol: " << book.symbol << '\n'
-                            << "Levels: "
-                            << "bids=" << book.bids.size()
-                            << ", asks=" << book.asks.size()
+                            << "CANDLE COMPLETED: "
+                            << completed_candle->symbol
+                            << " O=" << completed_candle->open
+                            << " H=" << completed_candle->high
+                            << " L=" << completed_candle->low
+                            << " C=" << completed_candle->close
+                            << " V=" << completed_candle->volume
                             << '\n';
+                    }
+                    // can make DB store calls here
+                    break;
+                }
 
-                        if (!book.bids.empty() && !book.asks.empty())
-                        {
-                            std::cout
-                                << "Bid: "
-                                << book.bids.front().price
-                                << " -> "
-                                << book.bids.front().quantity
-                                << '\n';
+                case BinanceMessageType::OrderBookUpdate:
+                {
+                    auto update = parser.parse_order_book_updates(message);
 
-                            std::cout
-                                << "Ask: "
-                                << book.asks.front().price
-                                << " -> "
-                                << book.asks.front().quantity
-                                << '\n';
-                        }
+                    auto result = order_book_reconstructor.apply_update(update);
+
+                    switch (result)
+                    {
+                        case UpdateResult::Applied:
+                            // TESTING
+                            std::cout << "ORDER BOOK UPDATE APPLIED\n";
+                            break;
+
+                        case UpdateResult::Ignored:
+                            break;
+
+                        case UpdateResult::SequenceGap:
+                            recover_order_book();
+                            break;
                     }
 
                     break;
-
-                case UpdateResult::Ignored:
-                    break;
-
-                case UpdateResult::SequenceGap:
-                    recover_order_book();
-                    break;
+                }
             }
         }
-
-        catch (const std::exception& e) {
-
+        catch (const std::exception& e)
+        {
             std::cerr << "Market data error: " << e.what() << '\n';
         }
     }

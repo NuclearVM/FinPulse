@@ -16,7 +16,7 @@ The architecture separates:
 * Analytical calculations.
 * Persistence and caching.
 
-The goal is to keep each layer responsible for one part of the system while allowing data to flow through the entire system without tightly coupling components.
+The goal is to keep each layer responsible for one part of the system while allowing data to flow through the entire system without tightly coupling components. This principle is applied within reason; some components like `OrderBookReconstructor` and `BinanceParser`, inherently depend on exchange-specific behavior and therefore cannot be made fully generic without introducing unnecessary abstraction.
 
 ---
 
@@ -110,26 +110,83 @@ Trade is currently the simplest canonical model in FinPulse. Binance trade messa
 
 `CandleStick` represents aggregated market activity over a defined time interval.
 
-Unlike `Trade`, candles are not currently parsed directly from Binance. Candles will be constructed by collecting `Trade` models over a defined time interval.
+Unlike `Trade`, candles are not currently parsed directly from Binance. `CandleAggregator` consumes canonical `Trade` objects and incrementally constructs one in-progress candle for the configured timeframe.
 
 **Required components:**
 
-* `CandleAggregator` *(planned)*
+* `CandleAggregator` 
 
-`CandleAggregator` will collect incoming `Trade` models and use their price and quantity information to construct the candle's:
+**Candle Aggregation**
 
-* Open price.
-* Close price.
-* High price.
-* Low price.
-* Volume.
-* Timestamp.
+`CandleAggregator` operates exclusively on the canonical `Trade` model and therefore does not contain exchange specific logic. A single aggregator implementation can be shared by all exchanges that produce canonical `Trade` objects.
 
-Once a candle has been completed, it can be passed to the analysis and storage components.
+The aggregator is configured with a timeframe, such as one minute, and it processes trades sequentially.
+
+The aggregator maintains the current candle internally. Each incoming trade is used to update:
+
+For each trade, the aggregator:
+
+* Determines which candle interval the trade belongs to.
+* Creates a new candle when no active candle exists.
+* Uses the first trade's price as the candle's open price
+* Updates the candle's close price with each subsequent trade.
+* Updates the high price when a trade occurs above the current highest price.
+* Updates the low price when a trade occurs below the current lowest price.
+* Adds each trade's quantity to the candle's volume.
+* Assigns the candle's timestamp to the beginning of its timeframe interval.
+
+When a trade belongs to a new timeframe, the current candle is completed and returned. A new candle is then created for incoming trade. 
+
+The aggregator therefore maintains only the current active candle rather than modifying previously completed candles.
+
+These are the values the aggregator works with:
+
+* Open price — the price of the first trade in the interval.
+* High price — the highest trade price observed during the interval.
+* Low price — the lowest trade price observed during the interval.
+* Close price — the price of the most recent trade.
+* Volume — the accumulated quantity of all trades in the interval.
+* Timestamp — the beginning of the candle's time interval.
+
+**Required components:**
+
+* `Trade`
+* `CandleAggregator`
+* `CandleStick`
+
+**Pipeline:**
+
+`Trade → CandleAggregator → CandleStick`
+
+**Timeframe:**
+
+The timeframe belongs to `CandleAggregator`, not the `CandleStick` model.
+
+For example, if the aggregator is configured for a one-minute timeframe, a candle timestamp of `14:32:00` represents the interval:
+
+`[14:32:00, 14:33:00)`
+
+The candle itself does not need to store its timeframe because the timeframe is a property of the aggregation process.
+
+**Candle Lifecycle:**
+
+A candle begins when the first trade belonging to its timeframe is received.
+
+For example:
+Trade @ 14:32:05 → Create 14:32 candle 
+Trade @ 14:32:17 → Update 14:32 candle 
+Trade @ 14:32:41 → Update 14:32 candle 
+Trade @ 14:32:59 → Update 14:32 candle 
+Trade @ 14:33:02 → Complete 14:32 candle 
+                ↓ Create 14:33 candle   (**Will provide a better diagram later**)
+
+Completed candle are passed downstream to analysis and storage components.
+
+`CandleAggregator` does not calculate analytical metrics and not persist candles.
 
 **Candle Analysis**
 
-`CandleStick` is also used by several analysis components.
+Completed `CandleStick` models are consumed by several analysis components.
 
 `CandleMetricsCalculator` receives a completed `CandleStick` and calculates its structural properties, represented by `CandleMetrics`.
 
@@ -156,14 +213,24 @@ ATR maintains its own state and calculates True Range using the current and prev
 
 **Required components:**
 
-* `CandleAggregator` *(planned)*
+* `CandleAggregator` 
 * `CandleMetricsCalculator`
 * `ATR`
 * `VolatilityMetricsCalculator`
 
+**Analysis pipeline**
+
+`CandleStick → CandleMetricsCalculator → CandleMetrics`
+
+`CandleStick → ATR`
+
+`CandleMetrics + ATR → VolatilityMetricsCalculator → VolatilityMetrics`
+
 **Storage:**
 
 * `Database` will persist completed candles for historical analysis.
+
+*Note: `CandleAggregator` does not interact directly with the database*
 
 **Pipeline:**
 
@@ -345,7 +412,7 @@ Its responsibilities include:
 * Establishing and closing the Binance WebSocket connection.
 * Performing the WebSocket handshake.
 * Reading WebSocket messages.
-* Passing raw messages to `BinanceParser`.
+* Passing raw messages to `BinanceParser` for message identification and parsing.
 * Passing order-book updates to `OrderBookReconstructor`.
 * Detecting synchronization failures.
 * Triggering snapshot recovery when a sequence gap is detected.
@@ -355,6 +422,22 @@ Its responsibilities include:
 REST operations are delegated to dedicated Binance components using the shared `HttpClient`.
 
 The client therefore acts primarily as an orchestration layer between Binance's streaming API and FinPulse's market-data components.
+
+### **Market Data Routing**
+
+`BinanceClient` receives messages from Binance's combined WebSocket stream and routes them according to their message type.
+
+Trade messages are identified and parsed by `BinanceParser` into canonical `Trade` objects. The resulting trades are passed to `CandleAggregator` for candle construction.
+
+Order-book update messages are identified and parsed by `BinanceParser` into `BinanceOrderBookUpdate` objects. These updates are passed to `OrderBookReconstructor` for state reconstruction.
+
+This allows BinanceClient to act as an orchestration layer while keeping candle aggregation independent of Binance-specific logic. Order-book reconstruction remains within the Binance-specific ingestion layer because it depends on Binance-specific snapshot, update, and sequencing models.
+
+**Current routing:**
+
+`Binance WebSocket → BinanceParser → Trade → CandleAggregator → CandleStick`
+
+`Binance WebSocket → BinanceParser → BinanceOrderBookUpdate → OrderBookReconstructor → OrderBook`
 
 ---
 
@@ -554,6 +637,11 @@ The backend also contains a `build/` directory generated by CMake and used for c
 
 ## **backend/include**
 
+### **`aggregation/`**
+Contains analysis components that operate on canonical market-data models.
+
+* `candle_aggregator.hpp`
+
 ### **`analysis/`**
 
 Contains analysis components that operate on canonical market-data models.
@@ -632,6 +720,11 @@ The storage layer is currently under development.
 ## **backend/src**
 
 The `src/` directory contains implementations for backend components that require separate compilation units.
+
+### **`aggregation/`**
+Contains analysis components that operate on canonical market-data models.
+
+* `candle_aggregator.cpp`
 
 ### **`analysis/`**
 

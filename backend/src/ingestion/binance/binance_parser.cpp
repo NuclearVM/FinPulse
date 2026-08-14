@@ -3,9 +3,22 @@
 
 using json = nlohmann::json;
 
+BinanceMessageType BinanceParser::identify_message(const std::string& message) 
+{
+    const auto data = json::parse(message).at("data");
+
+    const auto event_type = data.at("e").get<std::string>();
+
+    if (event_type == "trade") return BinanceMessageType::Trade;
+
+    if (event_type == "depthUpdate") return BinanceMessageType::OrderBookUpdate;
+
+    throw std::runtime_error("Unknown Binance message type: " + event_type);
+}
+
 Trade BinanceParser::parse_trade(const std::string& message) {
 
-    auto data = json::parse(message);
+    auto data = json::parse(message).at("data");
 
     Trade trade;
 
@@ -41,7 +54,7 @@ std::chrono::system_clock::time_point BinanceParser::convert_timestamp(uint64_t 
 
 BinanceOrderBookUpdate BinanceParser::parse_order_book_updates(const std::string& message) {
 
-    const auto data = json::parse(message);
+    const auto data = json::parse(message).at("data");
 
     BinanceOrderBookUpdate update;
 

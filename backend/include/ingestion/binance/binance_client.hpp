@@ -11,6 +11,7 @@
 #include "ingestion/binance/order_book_reconstructor.hpp"
 #include "ingestion/binance/snapshot_retriever.hpp"
 #include "common/http_client.hpp"
+#include "aggregation/candle_aggregator.hpp"
 
 using WebSocket = boost::beast::websocket::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>;
     
@@ -26,6 +27,8 @@ private:
 
     BinanceParser parser;
     OrderBookReconstructor order_book_reconstructor;
+
+    CandleAggregator candle_aggregator;
 
     HttpClient http_client;
     BinanceOrderBookSnapshotRetriever snapshot_retriever;
