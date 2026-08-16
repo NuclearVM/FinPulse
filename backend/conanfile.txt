@@ -2,6 +2,7 @@
 boost/1.89.0
 nlohmann_json/3.12.0
 openssl/3.5.2
+libpqxx/8.0.2
 
 [options]
 boost/*:without_cobalt_io_ssl=True

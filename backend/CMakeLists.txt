@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(libpqxx REQUIRED)
 
 add_executable(finpulse_backend)
 
@@ -50,6 +51,7 @@ target_sources(finpulse_backend
         include/aggregation/candle_aggregator.hpp
         src/aggregation/candle_aggregator.cpp
         include/ingestion/binance/binance_message_type.hpp
+        src/common/config.cpp
 )
 
 target_include_directories(finpulse_backend
@@ -63,4 +65,5 @@ target_link_libraries(finpulse_backend
         nlohmann_json::nlohmann_json
         OpenSSL::SSL
         OpenSSL::Crypto
+        libpqxx::pqxx
 )
