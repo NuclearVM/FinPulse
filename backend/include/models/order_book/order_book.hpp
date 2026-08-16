@@ -8,6 +8,7 @@
 struct OrderBook {
     
     std::string symbol;
+    std::string exchange;
 
     std::vector<OrderBookLevel> bids;
     std::vector<OrderBookLevel> asks;

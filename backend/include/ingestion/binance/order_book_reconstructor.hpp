@@ -17,6 +17,7 @@ private:
     std::map<double, double> asks;
 
     std::string symbol;
+    std::string exchange;
 
     std::uint64_t last_update_id = 0;
 

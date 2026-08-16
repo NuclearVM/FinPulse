@@ -5,6 +5,8 @@ void OrderBookReconstructor::initialize( const BinanceOrderBookSnapshot& snapsho
     bids.clear();
     asks.clear();
 
+    exchange = "Binance";
+
     symbol = snapshot.symbol;
     last_update_id = snapshot.last_update_id;
 
@@ -67,6 +69,7 @@ OrderBook OrderBookReconstructor::get_order_book() const
 
     book.symbol = symbol;
     book.timestamp = timestamp;
+    book.exchange = exchange;
 
     book.bids.reserve(bids.size());
     book.asks.reserve(asks.size());

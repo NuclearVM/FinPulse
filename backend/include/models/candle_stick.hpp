@@ -6,6 +6,7 @@
 struct CandleStick 
 {
     std::string symbol;
+    std::string exchange;
 
     double open;
     double close;

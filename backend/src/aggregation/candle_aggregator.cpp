@@ -8,6 +8,7 @@ std::optional<CandleStick> CandleAggregator::process_trade(const Trade& trade)
     if (!has_current_candle)
     {
         current_candle.symbol = trade.symbol;
+        current_candle.exchange = trade.exchange;
         current_candle.open = trade.price;
         current_candle.close = trade.price;
         current_candle.high = trade.price;
@@ -35,6 +36,7 @@ std::optional<CandleStick> CandleAggregator::process_trade(const Trade& trade)
     CandleStick completed_candle = current_candle;
 
     current_candle.symbol = trade.symbol;
+    current_candle.exchange = trade.exchange;
     current_candle.open = trade.price;
     current_candle.close = trade.price;
     current_candle.high = trade.price;
