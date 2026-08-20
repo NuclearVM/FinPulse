@@ -3,8 +3,11 @@
 #include "models/trade.hpp"
 #include "models/candle_stick.hpp"
 #include "common/config.hpp"
+#include "database_results.hpp"
 
 #include <pqxx/pqxx>
+#include <chrono>
+#include <string>
 
 class Database {
 private:
@@ -13,6 +16,6 @@ private:
 public:
     explicit Database(const DatabaseConfig& config);
 
-    void insert_trades(const Trade& trade);
-    void insert_candles(const CandleStick& candle);
+    DatabaseResults insert_trades(const Trade& trade);
+    DatabaseResults insert_candles(const CandleStick& candle);
 };

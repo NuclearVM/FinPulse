@@ -52,9 +52,13 @@ target_sources(finpulse_backend
         src/aggregation/candle_aggregator.cpp
         include/ingestion/binance/binance_message_type.hpp
         src/common/config.cpp
-        include/storage/trade_buffer.hpp
-        include/storage/candle_buffer.hpp
-        include/storage/buffer_results.hpp
+        include/storage/buffer/buffer_results.hpp
+        include/storage/buffer/buffer.hpp
+        include/storage/buffer/buffer.tpp
+        include/storage/storage.hpp
+        src/storage/storage.cpp
+        include/storage/database_results.hpp
+
 )
 
 target_include_directories(finpulse_backend
