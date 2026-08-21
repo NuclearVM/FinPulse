@@ -12,6 +12,8 @@
 #include "ingestion/binance/snapshot_retriever.hpp"
 #include "common/http_client.hpp"
 #include "aggregation/candle_aggregator.hpp"
+#include "storage/storage.hpp"
+#include "storage/database.hpp"
 
 using WebSocket = boost::beast::websocket::stream<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>>;
     
@@ -35,16 +37,18 @@ private:
 
     std::string read_message();
 
+    Storage storage;
+    BufferResult trade_result;
+    BufferResult candle_result;
+
     bool connected = false;
 
     void initialize_order_book();
     void recover_order_book();
 
-    // BinanceOrderBookSnapshot get_order_book_snapshot(const std::string& symbol, std::size_t limit);
-
 public:
 
-    BinanceClient();
+    explicit BinanceClient(const DatabaseConfig& config);
 
     void connect() override;
     void disconnect() override;

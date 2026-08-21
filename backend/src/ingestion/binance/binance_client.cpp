@@ -3,12 +3,13 @@
 
 
 // need to change to asynch later DO NOT FORGET
-BinanceClient::BinanceClient() : ssl_context(boost::asio::ssl::context::tls_client), 
+BinanceClient::BinanceClient(const DatabaseConfig& config) : ssl_context(boost::asio::ssl::context::tls_client), 
                                 resolver(io_context), 
                                 websocket(io_context, ssl_context), 
                                 http_client(io_context, ssl_context), 
                                 snapshot_retriever(http_client, parser),
-                                candle_aggregator(std::chrono::seconds(60)) {}
+                                candle_aggregator(std::chrono::seconds(60)),
+                                storage(config) {}
 
 void BinanceClient::connect() {
     try
@@ -118,36 +119,53 @@ void BinanceClient::start() {
                 case BinanceMessageType::Trade:
                 {
                     auto trade = parser.parse_trade(message);
+                    
+                    // std::cout<< "TRADE: "
+                    // << trade.symbol
+                    // << " price=" << trade.price
+                    // << " quantity=" << trade.quantity
+                    // << '\n';
 
-                    // TESTING
-                    // std::cout
-                    //     << "TRADE: "
-                    //     << trade.symbol
-                    //     << " price=" << trade.price
-                    //     << " quantity=" << trade.quantity
-                    //     << '\n';
+                    trade_result = storage.submit(trade);
+
+                    switch (trade_result) 
+                    {
+                        case BufferResult::Buffer:
+                            // std::cout << "TRADE -> BUFFER\n";
+                            break;
+
+                        case BufferResult::Overflow:
+                            // std::cout << "TRADE -> OVERFLOW\n";
+                            break;
+
+                        case BufferResult::Full:
+                            // std::cout << "TRADE -> FULL\n";
+                            // have the client stop submitting trades and candles
+                            break;
+                    }
 
                     auto completed_candle = candle_aggregator.process_trade(trade);
 
                     if (completed_candle)
                     {
-                        // TESTING
-                        std::cout
-                            << "CANDLE COMPLETED: "
-                            << completed_candle->symbol
-                            << " O=" << completed_candle->open
-                            << " H=" << completed_candle->high
-                            << " L=" << completed_candle->low
-                            << " C=" << completed_candle->close
-                            << " V=" << completed_candle->volume
-                            << '\n';
+                        //                          std::cout
+                        // << "CANDLE COMPLETED: "
+                        // << completed_candle->symbol
+                        // << " O=" << completed_candle->open
+                        // << " H=" << completed_candle->high
+                        // << " L=" << completed_candle->low
+                        // << " C=" << completed_candle->close
+                        // << " V=" << completed_candle->volume
+                        // << '\n';
+
+                        candle_result = storage.submit(*completed_candle);
                     }
-                    // can make DB store calls here
                     break;
                 }
 
                 case BinanceMessageType::OrderBookUpdate:
                 {
+                    // order books are to be added to redis, not timescaleDB
                     auto update = parser.parse_order_book_updates(message);
 
                     auto result = order_book_reconstructor.apply_update(update);

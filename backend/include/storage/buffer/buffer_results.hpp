@@ -1,3 +1,5 @@
+#pragma once
+
 enum class BufferResult
 {
     Buffer,         // call when buffer has space

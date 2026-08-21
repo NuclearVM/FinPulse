@@ -7,19 +7,41 @@
 // remove test prints later
 
 Database::Database(const DatabaseConfig& config) : 
-                                connection(
+                                connection_string(
                                     "host=" + config.host +
                                     " port=" + config.port +
                                     " dbname=" + config.database +
                                     " user=" + config.user +
                                     " password=" + config.password
-                                ) {
+                                ),
+                                connection(connection_string) 
+                                {
+
     if (!connection.is_open())
     {
         throw std::runtime_error("Failed to open database connection");
     }
 
     std::cout << "Connected to database\n";
+}
+
+DatabaseResults Database::reconnect() 
+{
+    try
+    {
+        connection = pqxx::connection(connection_string);
+
+        if (!connection.is_open())
+        {
+            return DatabaseResults::CONNECTION_ERROR;
+        }
+
+        return DatabaseResults::SUCCESS;
+    }
+    catch (const pqxx::broken_connection&)
+    {
+        return DatabaseResults::CONNECTION_ERROR;
+    }
 }
 
 DatabaseResults Database::insert_trades(const Trade& trade) 
@@ -73,13 +95,16 @@ DatabaseResults Database::insert_trades(const Trade& trade)
             }
         );
 
-    transaction.commit();
-
+        transaction.commit();
+        return DatabaseResults::SUCCESS;
     }
+
     catch (const pqxx::broken_connection&) 
     {
+        reconnect();
         return DatabaseResults::CONNECTION_ERROR;
     }
+
     catch (const std::exception&) 
     {
         return DatabaseResults::QUERY_ERROR;
@@ -131,13 +156,16 @@ DatabaseResults Database::insert_candles(const CandleStick& candle)
         );
 
         transaction.commit();
+        return DatabaseResults::SUCCESS;
     }
     catch (const pqxx::broken_connection&) 
     {
+        reconnect();
         return DatabaseResults::CONNECTION_ERROR;
     }
     catch (const std::exception&) 
     {
         return DatabaseResults::QUERY_ERROR;
     }
+}
     

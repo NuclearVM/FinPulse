@@ -1,3 +1,5 @@
+#pragma once
+
 #include "models/candle_stick.hpp"
 #include "models/trade.hpp"
 #include "database.hpp"
@@ -13,4 +15,7 @@ private:
 
 public:
     explicit Storage(const DatabaseConfig& config);
+
+    BufferResult submit(const Trade& trade);
+    BufferResult submit(const CandleStick& candle);
 };

@@ -11,7 +11,10 @@
 
 class Database {
 private:
+    std::string connection_string;
     pqxx::connection connection;
+
+    DatabaseResults reconnect();
 
 public:
     explicit Database(const DatabaseConfig& config);

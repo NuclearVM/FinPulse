@@ -3,17 +3,14 @@
 #include "storage/database.hpp"
 #include "common/config.hpp"
 
-int main() {
-
-    // BinanceClient client;
-
-    // client.connect();
-    // client.start();
-
+int main() 
+{
     DatabaseConfig config = load_database_config();
 
-    Database database(config);
+    BinanceClient client(config);
 
+    client.connect();
+    client.start();
 
     return 0;
 }

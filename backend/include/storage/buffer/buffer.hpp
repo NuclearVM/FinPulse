@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cstddef>
 #include <deque>
 #include <mutex>
@@ -17,9 +18,13 @@ private:
     std::size_t capacity;
     std::size_t overflow_capacity;
 
+    BufferResult buffer_result;
+
     Database& database;
 
     std::mutex mtx;
+
+    void to_buffer();
 
 public:
     Buffer(Database& database, std::size_t capacity, std::size_t overflow_capacity);
@@ -27,6 +32,7 @@ public:
     BufferResult submit(const T& data);
 
     void consume();
+    void consume_unlocked();
 
     DatabaseResults send(const T& data);
 };

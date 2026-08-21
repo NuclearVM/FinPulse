@@ -1,5 +1,4 @@
 #include <type_traits>
-#include "buffer.hpp"
 
 template <typename T>
 Buffer<T>::Buffer(Database& database, ::size_t capacity, std::size_t overflow_capacity) 
@@ -10,20 +9,40 @@ Buffer<T>::Buffer(Database& database, ::size_t capacity, std::size_t overflow_ca
 template <typename T>
 BufferResult Buffer<T>::submit(const T& data) 
 {
-    std::lock_guard lock(mtx)
-    if (buffer.size() < capacity)
+    std::lock_guard lock(mtx);
+
+    if (buffer.size() < capacity && !overflow_buffer.empty()) 
     {
-        buffer.push_back(data);
-        return BufferResult::Buffer;
+        buffer_result = BufferResult::Overflow;
+        to_buffer();
     }
 
-    if (overflow_buffer.size() < overflow_capacity)
+    else if (buffer.size() < capacity && overflow_buffer.empty())
+    {
+
+        buffer.push_back(data);
+        buffer_result = BufferResult::Buffer;
+        std::cout << "BUFFER\n";
+        // send(data);
+
+        // test
+        DatabaseResults result = send(data);
+        std::cout << "DATABASE RESULT: "
+          << static_cast<int>(result)
+          << '\n';
+        
+    }
+
+    else if (overflow_buffer.size() < overflow_capacity)
     {
         overflow_buffer.push_back(data);
-        return BufferResult::Overflow;
+        buffer_result = BufferResult::Overflow;
+        std::cout << "overflow\n";
     }
 
-    return BufferResult::Full;
+    else buffer_result = BufferResult::Full; 
+
+    return buffer_result;
     
 }
 
@@ -31,16 +50,38 @@ template <typename T>
 void Buffer<T>::consume()
 {
     std::lock_guard lock(mtx);
+    consume_unlocked();
+}
+
+template <typename T>
+void Buffer<T>::consume_unlocked()
+{
 
     if (!overflow_buffer.empty()) 
     {
-        overflow_buffer.pop_front
+        overflow_buffer.pop_front();
         return;
     }
 
-    if (!buffer.empty())
+    else if (!buffer.empty())
     {
         buffer.pop_front();
+    }
+    
+}
+
+template <typename T>
+void Buffer<T>:: to_buffer() 
+{
+    while (buffer_result == BufferResult::Overflow && buffer.size() < capacity)
+    {
+        buffer.push_back(overflow_buffer.front());
+        consume_unlocked();
+
+        if (overflow_buffer.empty())
+        {
+            buffer_result = BufferResult::Buffer;
+        }
     }
     
 }
@@ -52,7 +93,11 @@ DatabaseResults Buffer<T>::send(const T& data)
 
     if constexpr (std::is_same_v<T, Trade>) 
     {
-        result = database.insert_trades(data);
+        if (overflow_buffer.empty())
+        {
+            result = database.insert_trades(data);
+        }
+        
     }
 
     else if constexpr (std::is_same_v<T, CandleStick>) 
@@ -62,7 +107,7 @@ DatabaseResults Buffer<T>::send(const T& data)
 
     if (result == DatabaseResults::SUCCESS)
     {
-        consume();
+        consume_unlocked();
     }
 
     return result;
