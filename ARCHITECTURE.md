@@ -606,22 +606,65 @@ A sequence gap invalidates the current state and triggers snapshot recovery.
 
 ---
 
-# **Storage**
+# Storage and Buffering
 
-Storage is responsible for persistence, caching, and database communication.
+**NOTE: storage and buffering is in need of stress testing still!**
 
-The storage layer is intentionally separated from ingestion.
+## Storage
 
-Ingestion components should produce canonical market-data models rather than directly depending on a particular database implementation.
+The `Storage` component provides the interface between market-data ingestion and persistent database storage.
 
-Future storage components may consume these models for:
+It owns separate buffers for each persistable domain model:
 
-* Historical market-data storage.
-* Real-time caching.
-* Market-data replay.
-* Analytics queries.
+* `Trade`
+* `CandleStick`
 
-The specific database and caching architecture will be documented once those components are implemented.
+`Storage` delegates database operations to the appropriate buffer, keeping database-specific logic separate from the ingestion layer.
+
+The `Database` component is responsible for executing the actual TimescaleDB operations. It provides insertion functions for supported domain models and reports the result through `DatabaseResults`.
+
+## Buffer
+
+`Buffer<T>` is a generic templated component responsible for temporarily holding data before it is persisted.
+
+Each buffer has:
+
+* A primary buffer with a fixed capacity.
+* An overflow buffer with a separate capacity.
+* A mutex protecting buffer state.
+* A reference to the `Database` component.
+
+The buffer reports its current submission state through `BufferResult`:
+
+* `Buffer` — data was accepted by the primary buffer.
+* `Overflow` — data was accepted by the overflow buffer or the primary buffer is being refilled from overflow.
+* `Full` — both available buffer capacities have been exhausted.
+
+The buffer also handles moving data between the overflow and primary buffers as capacity becomes available.
+
+## Database Failure Handling
+
+Database insertion failures are represented through `DatabaseResults`.
+
+When a broken database connection is detected, the `Database` component attempts to reconnect and reports the resulting connection status to the caller.
+
+The buffering system is designed so that temporary database unavailability can be handled without stopping market-data ingestion. Data can remain buffered while database capacity is unavailable, subject to the configured buffer capacities.
+
+## Synchronization
+
+Buffer operations are protected by a mutex.
+
+`consume()` is the synchronized public operation, while `consume_unlocked()` is used internally when the caller already holds the buffer mutex. This prevents attempting to acquire the same mutex recursively during internal buffer operations.
+
+## Back Pressure
+**NOT IMPLEMENTED YET!**
+
+The buffering system provides bounded storage through its primary and overflow capacities.
+
+When both buffers are full, `BufferResult::Full` is returned to the caller. The ingestion layer can use this result to stop submitting additional data to storage without stopping unrelated market-data processing.
+
+The buffering design is intentionally compatible with the planned asynchronous migration. The storage subsystem can later be moved to asynchronous consumption without requiring the market-data models or storage interface to be redesigned.
+
 
 ---
 
@@ -712,8 +755,18 @@ Contains canonical order-book models.
 Contains storage abstractions and database interfaces.
 
 * `database.hpp`
+* `database_results.hpp`
+* `storage.hpp`
 
 The storage layer is currently under development.
+
+### **`storage/buffer/`**
+
+contains buffering abstraction and template.
+
+* `buffer_results.hpp`
+* `buffer.hpp`
+* `database.tpp`
 
 ---
 
@@ -840,3 +893,6 @@ The current Binance WebSocket implementation is synchronous, with asynchronous n
 ## **Conan**
 
 Conan was selected as the package manager for FinPulse because it provides reproducible dependency management, consistent library versions across development environments, and straightforward integration with CMake.
+
+## **Storage**
+will document later.
