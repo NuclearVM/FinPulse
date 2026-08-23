@@ -33,13 +33,17 @@ DatabaseResults Database::reconnect()
 
         if (!connection.is_open())
         {
+            // std::cout << "failed to reconnect\n";
             return DatabaseResults::CONNECTION_ERROR;
         }
+
+        // std::cout << "Reconnected\n";
 
         return DatabaseResults::SUCCESS;
     }
     catch (const pqxx::broken_connection&)
     {
+        std::cout << "connection error\n";
         return DatabaseResults::CONNECTION_ERROR;
     }
 }
@@ -96,19 +100,29 @@ DatabaseResults Database::insert_trades(const Trade& trade)
         );
 
         transaction.commit();
+        // std::cout << "connection succeeded\n";
         return DatabaseResults::SUCCESS;
+    }
+    
+    catch (const pqxx::unique_violation&)
+    {
+        return DatabaseResults::DUPLICATE;
     }
 
     catch (const pqxx::broken_connection&) 
     {
         reconnect();
+        // std::cout << "connection error\n";
         return DatabaseResults::CONNECTION_ERROR;
     }
 
-    catch (const std::exception&) 
+    catch (const std::exception& e) 
     {
+        // std::cout << "query error\n";
+        std::cerr << "QUERY ERROR: " << e.what() << '\n';
         return DatabaseResults::QUERY_ERROR;
     }
+
 }
 
 DatabaseResults Database::insert_candles(const CandleStick& candle)
@@ -156,15 +170,24 @@ DatabaseResults Database::insert_candles(const CandleStick& candle)
         );
 
         transaction.commit();
+        // std::cout << "connection succeeded\n";
         return DatabaseResults::SUCCESS;
+    }
+
+    catch (const pqxx::unique_violation&)
+    {
+        return DatabaseResults::DUPLICATE;
     }
     catch (const pqxx::broken_connection&) 
     {
         reconnect();
+        // std::cout << "connection error\n";
         return DatabaseResults::CONNECTION_ERROR;
     }
-    catch (const std::exception&) 
+    catch (const std::exception& e) 
     {
+        // std::cout << "query error\n";
+        std::cerr << "QUERY ERROR: " << e.what() << '\n';
         return DatabaseResults::QUERY_ERROR;
     }
 }

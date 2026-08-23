@@ -38,6 +38,8 @@ Trade BinanceParser::parse_trade(const std::string& message) {
 
     trade.execution_time = convert_timestamp(data["T"]);
 
+    trade.received_time = std::chrono::system_clock::now();
+
     return trade;
 }
 

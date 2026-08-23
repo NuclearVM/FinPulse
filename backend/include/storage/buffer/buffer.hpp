@@ -19,10 +19,17 @@ private:
     std::size_t overflow_capacity;
 
     BufferResult buffer_result;
+    DatabaseResults db_result;
 
     Database& database;
 
     std::mutex mtx;
+
+    void consume();
+
+    void consume_unlocked();
+
+    DatabaseResults send(const T& data);
 
     void to_buffer();
 
@@ -31,10 +38,14 @@ public:
 
     BufferResult submit(const T& data);
 
-    void consume();
-    void consume_unlocked();
+    void drain();
 
-    DatabaseResults send(const T& data);
+    DatabaseResults get_db_result() const;
+
+    // void consume();
+    // void consume_unlocked();
+
+    // DatabaseResults send(const T& data);
 };
 
 #include "buffer.tpp"

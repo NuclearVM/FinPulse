@@ -665,7 +665,7 @@ When both buffers are full, `BufferResult::Full` is returned to the caller. The 
 
 The buffering design is intentionally compatible with the planned asynchronous migration. The storage subsystem can later be moved to asynchronous consumption without requiring the market-data models or storage interface to be redesigned.
 
-
+**Note: will explain how the buffer is being implemented soon!**
 ---
 
 # **Project Structure**

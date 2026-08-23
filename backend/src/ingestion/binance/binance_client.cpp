@@ -160,6 +160,39 @@ void BinanceClient::start() {
 
                         candle_result = storage.submit(*completed_candle);
                     }
+
+                    switch (candle_result) 
+                    {
+                        case BufferResult::Buffer:
+                            // std::cout << "TRADE -> BUFFER\n";
+                            break;
+
+                        case BufferResult::Overflow:
+                            // std::cout << "TRADE -> OVERFLOW\n";
+                            break;
+
+                        case BufferResult::Full:
+                            // std::cout << "TRADE -> FULL\n";
+                            // have the client stop submitting trades and candles
+                            break;
+                    }
+
+                    switch (storage.get_db_result())
+                    {
+                    case DatabaseResults::SUCCESS:
+                        storage.drain();
+                        break;
+                    
+                    case DatabaseResults::QUERY_ERROR:
+                        break;
+
+                    case DatabaseResults::CONNECTION_ERROR:
+                        break;
+                    
+                    case DatabaseResults::DUPLICATE:
+                        break;
+                    }
+
                     break;
                 }
 
@@ -174,7 +207,7 @@ void BinanceClient::start() {
                     {
                         case UpdateResult::Applied:
                             // TESTING
-                            std::cout << "ORDER BOOK UPDATE APPLIED\n";
+                            // std::cout << "ORDER BOOK UPDATE APPLIED\n";
                             break;
 
                         case UpdateResult::Ignored:
@@ -187,7 +220,9 @@ void BinanceClient::start() {
 
                     break;
                 }
-            }
+
+
+            } 
         }
         catch (const std::exception& e)
         {

@@ -22,14 +22,16 @@ BufferResult Buffer<T>::submit(const T& data)
 
         buffer.push_back(data);
         buffer_result = BufferResult::Buffer;
-        std::cout << "BUFFER\n";
-        // send(data);
+        send(data);
+        // std::cout << "BUFFER SIZE: " << buffer.size()
+        //   << " | OVERFLOW SIZE: " << overflow_buffer.size()
+        //   << '\n';
 
         // test
-        DatabaseResults result = send(data);
-        std::cout << "DATABASE RESULT: "
-          << static_cast<int>(result)
-          << '\n';
+        // DatabaseResults result = send(data);
+        // std::cout << "DATABASE RESULT: "
+        //   << static_cast<int>(result)
+        //   << '\n';
         
     }
 
@@ -87,29 +89,51 @@ void Buffer<T>:: to_buffer()
 }
 
 template <typename T>
-DatabaseResults Buffer<T>::send(const T& data) 
+void Buffer<T>::drain()
 {
-    DatabaseResults result;
+    while (!buffer.empty())
+    {
+        db_result = send(buffer.front());
 
+        if (db_result == DatabaseResults::SUCCESS)
+            continue;
+
+        if (db_result == DatabaseResults::DUPLICATE)
+        {
+            buffer.pop_front();
+            continue;
+        }
+
+        break;
+    }
+}
+
+template <typename T>
+DatabaseResults Buffer<T>::send(const T& data) 
+{    
     if constexpr (std::is_same_v<T, Trade>) 
     {
-        if (overflow_buffer.empty())
-        {
-            result = database.insert_trades(data);
-        }
-        
+        db_result = database.insert_trades(data);
     }
 
     else if constexpr (std::is_same_v<T, CandleStick>) 
     {
-        result = database.insert_candles(data);
+        db_result = database.insert_candles(data);
     }
 
-    if (result == DatabaseResults::SUCCESS)
+    if (db_result == DatabaseResults::SUCCESS)
     {
+        // std::cout<<"consumed\n";
         consume_unlocked();
     }
 
-    return result;
+    return db_result;
     
 }
+
+template <typename T>
+DatabaseResults Buffer<T>::get_db_result() const
+{
+    return db_result;
+}
+
